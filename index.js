@@ -76,15 +76,13 @@ async function getAIReply(userMessage, senderName) {
 // ============================================================
 //  GREEN API — Send Message
 // ============================================================
-async function sendReply(chatId, message) {
-  try {
-    const url = `https://api.green-api.com/waInstance${CONFIG.GREEN_INSTANCE_ID}/sendMessage/${CONFIG.GREEN_API_TOKEN}`;
-    await axios.post(url, { chatId, message });
-    console.log(`Reply sent to: ${chatId}`);
-  } catch (err) {
-    console.error('Green API Error:', err.message);
+// 'v1' ko 'v1beta' se replace kar dein
+const response = await axios.post(
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`,
+  {
+    contents: [{ parts: [{ text: prompt }] }]
   }
-}
+);
 
 // ============================================================
 //  WEBHOOK — Incoming Messages
