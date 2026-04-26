@@ -42,15 +42,14 @@ RULES:
 `;
 
 // ============================================================
-//  GEMINI AI — Updated URL for better stability
+//  GEMINI AI — Updated to v1beta for Gemini 1.5 Flash
 // ============================================================
 async function getAIReply(userMessage, senderName) {
   try {
     const prompt = `${HR_KNOWLEDGE}\n\nEmployee: ${senderName}\nSawaal: ${userMessage}\nJawab:`;
 
-    // Maine URL ko v1beta se v1 aur model ko flash pe set kiya hai
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`,
       {
         contents: [{ parts: [{ text: prompt }] }]
       }
@@ -59,7 +58,6 @@ async function getAIReply(userMessage, senderName) {
     return response.data.candidates[0].content.parts[0].text;
 
   } catch (err) {
-    // Ye logs Railway mein poora error dikhayenge agar Gemini fail hua
     console.error('--- GEMINI ERROR START ---');
     if (err.response) {
       console.error('Status:', err.response.status);
@@ -76,13 +74,15 @@ async function getAIReply(userMessage, senderName) {
 // ============================================================
 //  GREEN API — Send Message
 // ============================================================
-// 'v1' ko 'v1beta' se replace kar dein
-const response = await axios.post(
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`,
-  {
-    contents: [{ parts: [{ text: prompt }] }]
+async function sendReply(chatId, message) {
+  try {
+    const url = `https://api.green-api.com/waInstance${CONFIG.GREEN_INSTANCE_ID}/sendMessage/${CONFIG.GREEN_API_TOKEN}`;
+    await axios.post(url, { chatId, message });
+    console.log(`Reply sent to: ${chatId}`);
+  } catch (err) {
+    console.error('Green API Error:', err.message);
   }
-);
+}
 
 // ============================================================
 //  WEBHOOK — Incoming Messages
@@ -119,7 +119,6 @@ app.get('/', (req, res) => {
   res.send('<h1>HR Bot is Live!</h1><p>Webhook is ready at /webhook</p>');
 });
 
-// Railway hamesha PORT variable provide karta hai
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
