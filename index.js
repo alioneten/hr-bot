@@ -4,7 +4,7 @@ const app = express();
 app.use(express.json());
 
 const CONFIG = {
-  GEMINI_API_KEY:     AIzaSyBA1b1ij5YYnPfqtzPwPrfpraLSfgeWczA,
+  GEMINI_API_KEY:     AIzaSyB9c5AaB3ETshtk-4yJ_8KtBqqP0PIJBKk,
   GREEN_INSTANCE_ID:  process.env.GREEN_INSTANCE_ID,
   GREEN_API_TOKEN:    process.env.GREEN_API_TOKEN,
 };
