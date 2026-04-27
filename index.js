@@ -7,9 +7,6 @@ const OPENROUTER_KEY = process.env.OPENROUTER_KEY;
 const INSTANCE = process.env.GREEN_INSTANCE_ID;
 const TOKEN = process.env.GREEN_API_TOKEN;
 
-// ============================================================
-// PANEL HOSPITALS — IGI Insurance
-// ============================================================
 const HOSPITALS = {
   'islamabad': [
     'Shifa International Hospital — H-8/4, Islamabad',
@@ -163,9 +160,6 @@ const HOSPITALS = {
 
 const PAGE_SIZE = 6;
 
-// ============================================================
-// HR KNOWLEDGE BASE
-// ============================================================
 const HR_KNOWLEDGE = `Aap M&P Express Logistics ke HR Assistant hain.
 
 SAKHT HIDAYAT:
@@ -196,12 +190,8 @@ MEDICAL POLICY:
 HR CONTACT:
 - Email: hr@mp.com.pk | Phone: 0311-1111111`;
 
-// ============================================================
-// SESSION MANAGEMENT
-// ============================================================
 const sessions = {};
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 min
-const hrbpActive = new Set(); // HRBP ne reply kiya — bot chup rahe
+const SESSION_TIMEOUT = 30 * 60 * 1000;
 
 function getSession(chatId) {
   const now = Date.now();
@@ -218,9 +208,6 @@ function setSession(chatId, data) {
   sessions[chatId] = { ...sessions[chatId], ...data, lastActive: Date.now() };
 }
 
-// ============================================================
-// TIME FUNCTIONS
-// ============================================================
 function getPKTHour() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })).getHours();
 }
@@ -238,9 +225,6 @@ function getGreeting() {
   return 'Assalam o Alaikum! Shab Bakhair';
 }
 
-// ============================================================
-// MAIN MENU
-// ============================================================
 function mainMenu(name) {
   return `${getGreeting()} ${name},
 
@@ -256,9 +240,6 @@ Emergency medical:
 IGI Helpline: 042-345-03333 (24/7)`;
 }
 
-// ============================================================
-// HOSPITAL FUNCTIONS
-// ============================================================
 function getHospitalPage(city, page) {
   const list = HOSPITALS[city];
   if (!list) return null;
@@ -294,9 +275,6 @@ function wantsMenu(text) {
   return t === '0' || t === 'menu' || t === 'wapas' || t === 'back';
 }
 
-// ============================================================
-// SEND MESSAGE
-// ============================================================
 async function sendMsg(chatId, message) {
   try {
     await axios.post(
@@ -308,9 +286,6 @@ async function sendMsg(chatId, message) {
   }
 }
 
-// ============================================================
-// AI REPLY
-// ============================================================
 async function getAIReply(text, name) {
   if (!isOfficeHours()) {
     return `Assalam o Alaikum ${name},\n\nOffice hours (9AM–5:30PM) khatam ho chuki hain.\nAglay working day mein jawab diya jaye ga.\n\nEmergency: IGI 042-345-03333 (24/7)\n\n0 — Main Menu`;
@@ -343,23 +318,13 @@ async function getAIReply(text, name) {
 }
 
 // ============================================================
-// WEBHOOK
+// WEBHOOK — Outgoing block hata diya, ab sab numbers reply karenge
 // ============================================================
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
   try {
     const body = req.body;
     const type = body.typeWebhook;
-
-    // HRBP ne message bheja — us chat ko bot se hata do
-    if (type === 'outgoingMessageReceived' || type === 'outgoingAPIMessageReceived') {
-      const chatId = body.chatData?.chatId || body.senderData?.chatId;
-      if (chatId) {
-        hrbpActive.add(chatId);
-        console.log('HRBP active in: ' + chatId);
-      }
-      return;
-    }
 
     if (type !== 'incomingMessageReceived') return;
 
@@ -369,41 +334,26 @@ app.post('/webhook', async (req, res) => {
     if (!chatId || !text) return;
     if (chatId.includes('@g.us')) return;
 
-    // Agar HRBP is chat mein active hai — bot bilkul reply na kare
-    // Sirf "0" ya "menu" se wapas bot mode mein aaye
-    if (hrbpActive.has(chatId)) {
-      if (wantsMenu(text)) {
-        hrbpActive.delete(chatId);
-        setSession(chatId, { state: 'menu' });
-        await sendMsg(chatId, mainMenu(name));
-      }
-      return;
-    }
-
     const session = getSession(chatId);
 
-    // 0 / menu / wapas — hamesha main menu
     if (wantsMenu(text)) {
       setSession(chatId, { state: 'menu' });
       await sendMsg(chatId, mainMenu(name));
       return;
     }
 
-    // Naya session
     if (session.state === 'new') {
       setSession(chatId, { state: 'menu' });
       await sendMsg(chatId, mainMenu(name));
       return;
     }
 
-    // Option 1
     if (text.trim() === '1') {
       setSession(chatId, { state: 'ai_chat' });
       await sendMsg(chatId, `HR Policies ke baare mein apna sawaal likhein:\n(Leaves, Medical, ya koi aur policy)\n\n0 — Main Menu`);
       return;
     }
 
-    // Option 2
     if (text.trim() === '2') {
       setSession(chatId, { state: 'menu' });
       await sendMsg(chatId,
@@ -418,7 +368,6 @@ Saturday & Sunday: Band
       return;
     }
 
-    // Option 3
     if (text.trim() === '3') {
       setSession(chatId, { state: 'hospital_city' });
       await sendMsg(chatId,
@@ -428,14 +377,12 @@ Saturday & Sunday: Band
       return;
     }
 
-    // Option 4
     if (text.trim() === '4') {
       setSession(chatId, { state: 'ai_chat' });
       await sendMsg(chatId, `Apna sawaal likhein — HRBP online hone par jawab diya jaye ga.\n\n0 — Main Menu`);
       return;
     }
 
-    // Hospital city
     if (session.state === 'hospital_city') {
       const city = findCity(text);
       if (city) {
@@ -447,7 +394,6 @@ Saturday & Sunday: Band
       return;
     }
 
-    // Hospital pagination
     if (session.state === 'hospital_list' && wantsMore(text)) {
       const nextPage = (session.hospitalPage || 0) + 1;
       const result = getHospitalPage(session.hospitalCity, nextPage);
@@ -461,14 +407,12 @@ Saturday & Sunday: Band
       return;
     }
 
-    // AI chat
     if (session.state === 'ai_chat') {
       const reply = await getAIReply(text, name);
       await sendMsg(chatId, reply);
       return;
     }
 
-    // Default
     setSession(chatId, { state: 'menu' });
     await sendMsg(chatId, mainMenu(name));
 
