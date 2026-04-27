@@ -154,7 +154,7 @@ MEDICAL POLICY:
 
 HR CONTACT:
 - Email: hr@mp.com.pk
-- Phone: 0311-1111111`;
+- Phone: 0316-0020103`;
 
 // ============================================================
 // TIME FUNCTIONS
