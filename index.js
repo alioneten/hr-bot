@@ -8,21 +8,7 @@ const INSTANCE = process.env.GREEN_INSTANCE_ID;
 const TOKEN = process.env.GREEN_API_TOKEN;
 
 // ============================================================
-// SECURITY
-// ============================================================
-const WHITELIST = new Set([
-  '923001234567@c.us',
-  '923111234567@c.us',
-]);
-
-const EMPLOYEE_DB = {
-  'EMP001': '923001234567@c.us',
-  'EMP002': '923111234567@c.us',
-};
-
-// ============================================================
-// PANEL HOSPITALS — Yahan apni complete list daalen
-// Format: 'city': ['Hospital Name — Address', ...]
+// PANEL HOSPITALS
 // ============================================================
 const HOSPITALS = {
   'islamabad': [
@@ -104,7 +90,6 @@ const HOSPITALS = {
     'Bone Care Trauma Centre — Pathan Colony',
     'Red Crescent General Hospital — Latifabad',
     'Liaquat University Hospital — Hyderabad',
-    'Majee Hospital — Autobahn Road',
   ],
   'quetta': [
     'Heart & General Hospital — Model Town',
@@ -129,9 +114,8 @@ const HOSPITALS = {
 };
 
 const PAGE_SIZE = 6;
-
-// Session mein hospital pagination track karein
-const hospitalSessions = {}; // chatId => { city, page }
+const hospitalSessions = {};
+const seenUsers = new Set();
 
 // ============================================================
 // HR KNOWLEDGE BASE
@@ -195,34 +179,25 @@ function getGreeting() {
 function getHospitalPage(city, page) {
   const list = HOSPITALS[city];
   if (!list) return null;
-
   const start = page * PAGE_SIZE;
   const chunk = list.slice(start, start + PAGE_SIZE);
   if (chunk.length === 0) return null;
-
   const total = list.length;
   const hasMore = start + PAGE_SIZE < total;
   const shown = Math.min(start + PAGE_SIZE, total);
-
   let msg = `IGI Panel Hospitals — ${city.charAt(0).toUpperCase() + city.slice(1)}:\n`;
   msg += `(${start + 1}–${shown} / Total: ${total})\n\n`;
-
-  chunk.forEach((h, i) => {
-    msg += `${start + i + 1}. ${h}\n`;
-  });
-
+  chunk.forEach((h, i) => { msg += `${start + i + 1}. ${h}\n`; });
   msg += `\nIGI Health Approvals: 042-345-03333 (24/7)`;
-
   if (hasMore) {
     msg += `\n\n--- Mazeed hospitals dekhne ke liye "aur" likhein ---`;
   } else {
     msg += `\n\n--- ${city} ki poori list mukammal ho gayi ---`;
   }
-
-  return { msg, hasMore, city };
+  return msg;
 }
 
-function findCityInText(text) {
+function findCity(text) {
   const lower = text.toLowerCase();
   for (const city of Object.keys(HOSPITALS)) {
     if (lower.includes(city)) return city;
@@ -232,15 +207,8 @@ function findCityInText(text) {
 
 function wantsMore(text) {
   const lower = text.toLowerCase().trim();
-  return ['aur', 'more', 'mazeed', 'next', 'agla', 'aur dikhao', 'or'].some(w => lower.includes(w));
+  return ['aur', 'more', 'mazeed', 'next', 'agla', 'aur dikhao', 'or dikhao'].some(w => lower.includes(w));
 }
-
-// ============================================================
-// SESSION MANAGEMENT
-// ============================================================
-const verifiedUsers = new Set();
-const pendingVerification = new Set();
-const seenUsers = new Set();
 
 // ============================================================
 // SEND MESSAGE
@@ -261,30 +229,31 @@ async function sendMsg(chatId, message) {
 // ============================================================
 async function getAIReply(text, name, chatId) {
 
-  // Hospital pagination — "aur" likha?
+  // Hospital pagination
   if (wantsMore(text) && hospitalSessions[chatId]) {
     const { city, page } = hospitalSessions[chatId];
     const nextPage = page + 1;
     const result = getHospitalPage(city, nextPage);
     if (result) {
       hospitalSessions[chatId] = { city, page: nextPage };
-      return result.msg;
+      return result;
     } else {
       delete hospitalSessions[chatId];
       return `${city} ki poori hospital list aap ko bhej di gayi hai.\n\nIGI Health Approvals: 042-345-03333 (24/7)`;
     }
   }
 
-  // City naam likha?
-  const city = findCityInText(text);
+  // City naam check
+  const city = findCity(text);
   if (city) {
     const result = getHospitalPage(city, 0);
     if (result) {
       hospitalSessions[chatId] = { city, page: 0 };
-      return result.msg;
+      return result;
     }
   }
 
+  // After hours
   if (!isOfficeHours()) {
     return `Assalam o Alaikum ${name},\n\nAap ka message موصول ho gaya hai.\nOffice hours (9:00 AM - 5:30 PM, Somvar se Juma) khatam ho chuki hain.\n\nAglay working day mein jawab diya jaye ga.\n\nEmergency medical ke liye:\nIGI Helpline: 042-345-03333 (24/7)\n\nShukriya — M&P Express HR Helpdesk`;
   }
@@ -331,29 +300,11 @@ app.post('/webhook', async (req, res) => {
     if (!chatId || !text) return;
     if (chatId.includes('@g.us')) return;
 
-    // LAYER 1: WHITELIST
-    if (!WHITELIST.has(chatId)) {
-      await sendMsg(chatId, `Assalam o Alaikum!\n\nYeh service sirf M&P Express ke registered employees ke liye hai.\n\nHR se rabta karein: hr@mp.com.pk\n\nShukriya.`);
-      return;
-    }
-
-    // LAYER 2: EMPLOYEE ID
-    if (!verifiedUsers.has(chatId)) {
-      if (!seenUsers.has(chatId)) {
-        seenUsers.add(chatId);
-        pendingVerification.add(chatId);
-        await sendMsg(chatId, `${getGreeting()} ${name},\n\nM&P Express HR Helpdesk mein khush aamdeed.\n\nTasdeq ke liye apna Employee ID darj farmaein:\n(Misaal: EMP001)`);
-        return;
-      }
-      if (pendingVerification.has(chatId)) {
-        const id = text.trim().toUpperCase();
-        if (EMPLOYEE_DB[id] === chatId) {
-          verifiedUsers.add(chatId);
-          pendingVerification.delete(chatId);
-          await sendMsg(chatId,
+    // Pehla message — welcome
+    if (!seenUsers.has(chatId)) {
+      seenUsers.add(chatId);
+      await sendMsg(chatId,
 `${getGreeting()} ${name},
-
-Aap ki shanakht kamiyabi se mustanad ho gayi. ✓
 
 M&P Express HR Helpdesk mein khush aamdeed.
 Yeh service exclusively HR-related queries ke liye hai.
@@ -368,16 +319,12 @@ Apni inquiry muntakhib farmaein:
 Option 1, 2, 3 ka jawab fehri mil jaye ga.
 Option 4 ke liye HRBP online hone par jawab diya jaye ga.
 
-Note: Emergency medical ke liye
-IGI Helpline: 042-345-03333 (24/7 available)`);
-        } else {
-          await sendMsg(chatId, `Darj karda Employee ID mustanad nahi.\n\nDobara koshish karein ya HR se rabta karein:\nhr@mp.com.pk | 0311-1111111`);
-        }
-        return;
-      }
+Emergency medical ke liye:
+IGI Helpline: 042-345-03333 (24/7)`);
+      return;
     }
 
-    // VERIFIED — REPLY
+    // Baad ke messages — AI
     const reply = await getAIReply(text, name, chatId);
     await sendMsg(chatId, reply);
 
