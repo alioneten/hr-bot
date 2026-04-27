@@ -8,7 +8,7 @@ const INSTANCE = process.env.GREEN_INSTANCE_ID;
 const TOKEN = process.env.GREEN_API_TOKEN;
 
 // ============================================================
-// PANEL HOSPITALS
+// PANEL HOSPITALS — IGI Insurance
 // ============================================================
 const HOSPITALS = {
   'islamabad': [
@@ -25,14 +25,22 @@ const HOSPITALS = {
     'Bahria International Hospital — Bahria Golf City, Rawalpindi',
     'Asghar Mall Hospital — Asghar Mall Road, Rawalpindi',
   ],
+  'rawalpindi': [
+    'Shifa Eye Trust Hospital — Jhelum Road',
+    'Al Suffah Hospital — Satellite Town',
+    'Citymed Hospital — Civil Lines',
+    'Bahria International Hospital — Bahria Golf City',
+    'Asghar Mall Hospital — Asghar Mall Road',
+    'Holy Family Hospital — Satellite Town',
+  ],
   'karachi': [
-    'Dr. Ziauddin Hospital (Clifton) — Clifton, Karachi',
+    'Dr. Ziauddin Hospital (Clifton) — Clifton',
     'Dr. Ziauddin Hospital (N. Nazimabad) — North Nazimabad',
-    'Dr. Ziauddin Hospital (Kemari) — Kemari, Karachi',
+    'Dr. Ziauddin Hospital (Kemari) — Kemari',
     'Dow University Hospital — KDA Scheme-33',
     'Boulevard Hospital — Korangi Road',
     'Aga Khan Hospital — M.A. Jinnah Road',
-    'Al-Ain Eye Hospital — PECHS, Karachi',
+    'Al-Ain Eye Hospital — PECHS',
     'Park Lane Hospital — Old Clifton',
     'Al Tamash Hospital — Clifton',
     'Dr. Halim Hospital — North Nazimabad',
@@ -40,6 +48,8 @@ const HOSPITALS = {
     'Anklesaria Nursing Home — Garden Road',
     'Pakistan International Hospital — DHA Phase 1',
     'Bayview Hospital — DHA Phase VIII',
+    'Ziauddin Hospital (North) — North Karachi',
+    'Indus Hospital — Korangi',
   ],
   'lahore': [
     'Farooq Hospital — DHA, Lahore',
@@ -56,14 +66,8 @@ const HOSPITALS = {
     'Sharif Medical City — Raiwind Road',
     'Surgimed Hospital — Zafar Ali Road',
     'Saadan Hospital — Johar Town',
-  ],
-  'rawalpindi': [
-    'Shifa Eye Trust Hospital — Jhelum Road',
-    'Al Suffah Hospital — Satellite Town',
-    'Citymed Hospital — Civil Lines',
-    'Bahria International Hospital — Bahria Golf City',
-    'Asghar Mall Hospital — Asghar Mall Road',
-    'Holy Family Hospital — Satellite Town',
+    'Ganga Ram Hospital — Mall Road',
+    'Lahore General Hospital — Fatima Jinnah Road',
   ],
   'multan': [
     'Nishtar Hospital — Nishtar Road',
@@ -71,45 +75,89 @@ const HOSPITALS = {
     'Mukhtar A. Sheikh Hospital — Multan',
     'Ibn-e-Sina Hospital — Khanewal Road',
     'Aziz Fatima Hospital — Multan',
+    'Chaudhry Pervaiz Elahi Institute — Multan',
   ],
   'peshawar': [
     'Hayatabad Medical Complex — Phase 5, Hayatabad',
     'Northwest General Hospital — Peshawar Cantt',
     'Lady Reading Hospital — Nishtar Road',
     'Khyber Teaching Hospital — Peshawar',
+    'Pakistan Railway Hospital — Peshawar Cantt',
+    'Rehman Medical Institute — Phase 5, Hayatabad',
   ],
   'faisalabad': [
     'Allied Hospital — University Road',
-    'Faisalabad Institute of Cardiology — Faisalabad',
+    'Faisalabad Institute of Cardiology',
     'National Hospital — Faisalabad',
     'Peoples Hospital — Faisalabad',
-    'District Headquarters Hospital — Faisalabad',
+    'District Headquarters Hospital',
+    'Dar-ul-Shifa Hospital — Faisalabad',
+    'Chenab Medical Complex — Faisalabad',
   ],
   'hyderabad': [
     'Aga Khan Maternity — Jamshoro Road',
     'Bone Care Trauma Centre — Pathan Colony',
     'Red Crescent General Hospital — Latifabad',
     'Liaquat University Hospital — Hyderabad',
+    'Majee Hospital — Autobahn Road',
   ],
   'quetta': [
     'Heart & General Hospital — Model Town',
     'Sandeman Provincial Hospital — Quetta',
     'Bolan Medical College Hospital — Quetta',
+    'Quetta Institute of Medical Sciences',
   ],
   'sialkot': [
     'Allama Iqbal Memorial Hospital — Commissioner Road',
     'Sardar Trust Hospital — Islamia College Road',
     'District Headquarters Hospital — Sialkot',
+    'Ghurki Hospital — Sialkot',
   ],
   'gujranwala': [
     'Gujranwala Teaching Hospital — Satellite Town',
     'DHQ Hospital — Hospital Road',
     'Pakistan Kidney Center — Gujranwala',
+    'Bismillah Hospital — Gujranwala',
   ],
   'abbottabad': [
     'Ayub Teaching Hospital — Link Road',
     'Abbottabad International Hospital — N-35',
     'DHQ Hospital — Main Mansehra Road',
+  ],
+  'sukkur': [
+    'Ghulam Muhammad Mahar Medical College Hospital — Sukkur',
+    'Civil Hospital — Sukkur',
+    'Ibn-e-Siena Hospital — Sukkur',
+  ],
+  'bahawalpur': [
+    'Bahawal Victoria Hospital — Bahawalpur',
+    'Quaid-e-Azam Medical College Hospital',
+    'Al-Sadiq Hospital — Bahawalpur',
+  ],
+  'sargodha': [
+    'District Headquarters Hospital — Sargodha',
+    'DHQ Teaching Hospital — Sargodha',
+    'Sargodha Medical College Hospital',
+  ],
+  'gujrat': [
+    'DHQ Hospital — Gujrat',
+    'Aziz Bhatti Shaheed Hospital — Gujrat',
+  ],
+  'rahim yar khan': [
+    'Sheikh Zayed Hospital — Rahim Yar Khan',
+    'DHQ Hospital — Rahim Yar Khan',
+  ],
+  'mardan': [
+    'Mardan Medical Complex — Mardan',
+    'DHQ Hospital — Mardan',
+  ],
+  'mirpur': [
+    'Mirpur Teaching Hospital — Mirpur AJK',
+    'DHQ Hospital — Mirpur',
+  ],
+  'muzaffarabad': [
+    'Shaukat Hayat Memorial Hospital — Muzaffarabad',
+    'DHQ Hospital — Muzaffarabad',
   ],
 };
 
@@ -123,10 +171,8 @@ const HR_KNOWLEDGE = `Aap M&P Express Logistics ke HR Assistant hain.
 SAKHT HIDAYAT:
 - Sirf saf Urdu ya English mein jawab dein — Hindi words bilkul nahi
 - Sirf neeche di gayi maloomat ke mutabiq jawab dein
-- Agar sawaal knowledge base mein nahi hai to likhen:
-  "Yeh maloomat mere paas maujood nahi. HRBP se rabta karein."
-- Apni taraf se kuch bhi na banayein
-- Mukhtasar aur wazeh jawab dein — 3 se 5 lines kafi hain
+- Agar sawaal knowledge base mein nahi hai: "Yeh maloomat mere paas nahi. HRBP se rabta karein."
+- Mukhtasar jawab dein — 3 se 5 lines
 - Jawab ke aakhir mein hamesha likhen: "0 — Main Menu"
 
 LEAVES POLICY:
@@ -142,27 +188,24 @@ OFFICE TIMING:
 - Saturday aur Sunday: Band
 
 MEDICAL POLICY:
-- Panel hospital mein sirf IGI Health Card dikhayein
-- Emergency mein kisi bhi hospital ja sakte hain — baad mein claim karein
-- Claim form HR office se milta hai — 30 din ke andar jama karwayein
+- Panel hospital mein IGI Health Card dikhayein — koi payment nahi
+- Emergency mein kisi bhi hospital — baad mein claim karein
+- Claim form HR office se — 30 din ke andar jama karwayein
 - IGI Health Approvals: 042-345-03333 (24/7)
 
 HR CONTACT:
-- Email: hr@mp.com.pk
-- Phone: 0311-1111111`;
+- Email: hr@mp.com.pk | Phone: 0311-1111111`;
 
 // ============================================================
-// SESSION STORAGE
-// session = { state, hospitalCity, hospitalPage, lastActive }
-// states: 'menu' | 'hospital_city' | 'hospital_list' | 'ai_chat'
+// SESSION MANAGEMENT
 // ============================================================
 const sessions = {};
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minute
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 min
+const hrbpActive = new Set(); // HRBP ne reply kiya — bot chup rahe
 
 function getSession(chatId) {
   const now = Date.now();
   const s = sessions[chatId];
-  // Session expired ya nahi hai — fresh start
   if (!s || (now - s.lastActive) > SESSION_TIMEOUT) {
     sessions[chatId] = { state: 'new', lastActive: now };
   } else {
@@ -214,7 +257,7 @@ IGI Helpline: 042-345-03333 (24/7)`;
 }
 
 // ============================================================
-// HOSPITAL PAGINATION
+// HOSPITAL FUNCTIONS
 // ============================================================
 function getHospitalPage(city, page) {
   const list = HOSPITALS[city];
@@ -229,8 +272,8 @@ function getHospitalPage(city, page) {
   chunk.forEach((h, i) => { msg += `${start + i + 1}. ${h}\n`; });
   msg += `\nIGI Approvals: 042-345-03333 (24/7)`;
   msg += hasMore
-    ? `\n\n"aur" — mazeed hospitals\n"0" — Main Menu`
-    : `\n\n--- Poori list mukammal ---\n\n"0" — Main Menu`;
+    ? `\n\n"aur" likhein — mazeed hospitals\n"0" — Main Menu`
+    : `\n\n--- Poori list mukammal ---\n"0" — Main Menu`;
   return msg;
 }
 
@@ -247,7 +290,8 @@ function wantsMore(text) {
 }
 
 function wantsMenu(text) {
-  return text.trim() === '0' || text.toLowerCase().includes('menu') || text.toLowerCase().includes('wapas');
+  const t = text.trim().toLowerCase();
+  return t === '0' || t === 'menu' || t === 'wapas' || t === 'back';
 }
 
 // ============================================================
@@ -269,7 +313,7 @@ async function sendMsg(chatId, message) {
 // ============================================================
 async function getAIReply(text, name) {
   if (!isOfficeHours()) {
-    return `Assalam o Alaikum ${name},\n\nOffice hours (9AM–5:30PM, Somvar–Juma) khatam ho chuki hain.\nAglay working day mein jawab diya jaye ga.\n\nEmergency: IGI Helpline 042-345-03333 (24/7)\n\n0 — Main Menu`;
+    return `Assalam o Alaikum ${name},\n\nOffice hours (9AM–5:30PM) khatam ho chuki hain.\nAglay working day mein jawab diya jaye ga.\n\nEmergency: IGI 042-345-03333 (24/7)\n\n0 — Main Menu`;
   }
   const MODELS = [
     'nvidia/nemotron-3-super-120b-a12b:free',
@@ -295,7 +339,7 @@ async function getAIReply(text, name) {
       console.log('Failed: ' + model);
     }
   }
-  return `Maafi, system busy hai. HR rabta: hr@mp.com.pk | 0311-1111111\n\n0 — Main Menu`;
+  return `Maafi, system busy hai. Rabta karein: hr@mp.com.pk | 0311-1111111\n\n0 — Main Menu`;
 }
 
 // ============================================================
@@ -305,37 +349,61 @@ app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
   try {
     const body = req.body;
-    if (body.typeWebhook !== 'incomingMessageReceived') return;
+    const type = body.typeWebhook;
+
+    // HRBP ne message bheja — us chat ko bot se hata do
+    if (type === 'outgoingMessageReceived' || type === 'outgoingAPIMessageReceived') {
+      const chatId = body.chatData?.chatId || body.senderData?.chatId;
+      if (chatId) {
+        hrbpActive.add(chatId);
+        console.log('HRBP active in: ' + chatId);
+      }
+      return;
+    }
+
+    if (type !== 'incomingMessageReceived') return;
+
     const chatId = body.senderData?.chatId;
     const text = body.messageData?.textMessageData?.textMessage;
     const name = body.senderData?.senderName || 'Employee';
     if (!chatId || !text) return;
     if (chatId.includes('@g.us')) return;
 
+    // Agar HRBP is chat mein active hai — bot bilkul reply na kare
+    // Sirf "0" ya "menu" se wapas bot mode mein aaye
+    if (hrbpActive.has(chatId)) {
+      if (wantsMenu(text)) {
+        hrbpActive.delete(chatId);
+        setSession(chatId, { state: 'menu' });
+        await sendMsg(chatId, mainMenu(name));
+      }
+      return;
+    }
+
     const session = getSession(chatId);
 
-    // 0 — Hamesha main menu
+    // 0 / menu / wapas — hamesha main menu
     if (wantsMenu(text)) {
       setSession(chatId, { state: 'menu' });
       await sendMsg(chatId, mainMenu(name));
       return;
     }
 
-    // Naya session ya pehla message
+    // Naya session
     if (session.state === 'new') {
       setSession(chatId, { state: 'menu' });
       await sendMsg(chatId, mainMenu(name));
       return;
     }
 
-    // Option 1 — HR Policies
+    // Option 1
     if (text.trim() === '1') {
       setSession(chatId, { state: 'ai_chat' });
-      await sendMsg(chatId, `HR Policies ke baare mein apna sawaal likhein:\n\n(Leaves, Medical, ya koi aur policy)\n\n0 — Main Menu`);
+      await sendMsg(chatId, `HR Policies ke baare mein apna sawaal likhein:\n(Leaves, Medical, ya koi aur policy)\n\n0 — Main Menu`);
       return;
     }
 
-    // Option 2 — Office Timing
+    // Option 2
     if (text.trim() === '2') {
       setSession(chatId, { state: 'menu' });
       await sendMsg(chatId,
@@ -343,57 +411,43 @@ app.post('/webhook', async (req, res) => {
 
 Somvar se Juma: 9:00 AM – 5:30 PM
 Lunch Break: 1:00 PM – 2:00 PM
-Late Arrival Grace: 15 minute
+Late Grace: 15 minute
 Saturday & Sunday: Band
 
 0 — Main Menu`);
       return;
     }
 
-    // Option 3 — Hospitals
+    // Option 3
     if (text.trim() === '3') {
       setSession(chatId, { state: 'hospital_city' });
       await sendMsg(chatId,
-`Aap kis city ke panel hospitals ki maloomat chahte hain?
+`City ka naam likhein — us city ke IGI panel hospitals ki detail share kar di jaye gi.
 
-Dastiyab cities:
-Islamabad, Rawalpindi, Karachi, Lahore,
-Multan, Peshawar, Faisalabad, Hyderabad,
-Quetta, Sialkot, Gujranwala, Abbottabad
-
-City ka naam likhein:
 0 — Main Menu`);
       return;
     }
 
-    // Option 4 — Other
+    // Option 4
     if (text.trim() === '4') {
       setSession(chatId, { state: 'ai_chat' });
       await sendMsg(chatId, `Apna sawaal likhein — HRBP online hone par jawab diya jaye ga.\n\n0 — Main Menu`);
       return;
     }
 
-    // Hospital city wait
+    // Hospital city
     if (session.state === 'hospital_city') {
       const city = findCity(text);
       if (city) {
         setSession(chatId, { state: 'hospital_list', hospitalCity: city, hospitalPage: 0 });
         await sendMsg(chatId, getHospitalPage(city, 0));
       } else {
-        await sendMsg(chatId,
-`Maafi, yeh city database mein nahi hai.
-
-Dobara likhein:
-Islamabad, Rawalpindi, Karachi, Lahore,
-Multan, Peshawar, Faisalabad, Hyderabad,
-Quetta, Sialkot, Gujranwala, Abbottabad
-
-0 — Main Menu`);
+        await sendMsg(chatId, `Maafi, yeh city database mein nahi hai.\n\nDobara city ka naam likhein ya:\n0 — Main Menu`);
       }
       return;
     }
 
-    // Hospital list — aur
+    // Hospital pagination
     if (session.state === 'hospital_list' && wantsMore(text)) {
       const nextPage = (session.hospitalPage || 0) + 1;
       const result = getHospitalPage(session.hospitalCity, nextPage);
@@ -414,7 +468,7 @@ Quetta, Sialkot, Gujranwala, Abbottabad
       return;
     }
 
-    // Default — menu dikhao
+    // Default
     setSession(chatId, { state: 'menu' });
     await sendMsg(chatId, mainMenu(name));
 
