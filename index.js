@@ -18,7 +18,7 @@ async function getReply(text, name) {
     const res = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'mistralai/mistral-7b-instruct:free',
+        model: 'google/gemma-3-1b-it:free',
         messages: [
           { role: 'system', content: HR_INFO },
           { role: 'user', content: name + ' poochh raha hai: ' + text }
