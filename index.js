@@ -141,10 +141,10 @@ LEAVES POLICY:
 - Leave apply karne ke liye pehle supervisor ko batayein
 
 OFFICE TIMING:
-- Somvar se Juma: 9:00 AM - 5:30 PM (PKT)
+- Monday to Saturday: 9:00 AM - 5:30 PM (PKT)
 - Lunch Break: 1:00 PM - 2:00 PM
 - Late arrival grace period: 15 minute
-- Saturday aur Sunday: Band
+- Sunday: Band
 
 MEDICAL POLICY:
 - Panel hospital mein sirf IGI Health Card dikhayein — koi payment nahi
