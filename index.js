@@ -229,13 +229,12 @@ async function sendMsg(chatId, message) {
 // ============================================================
 async function getAIReply(text, name, chatId) {
 
-  // Hospital pagination
-  if (wantsMore(text) && hospitalSessions[chatId]) {
+  if (wantsMore(text) && hospitalSessions[chatId] && !hospitalSessions[chatId].waitingCity) {
     const { city, page } = hospitalSessions[chatId];
     const nextPage = page + 1;
     const result = getHospitalPage(city, nextPage);
     if (result) {
-      hospitalSessions[chatId] = { city, page: nextPage };
+      hospitalSessions[chatId] = { city, page: nextPage, waitingCity: false };
       return result;
     } else {
       delete hospitalSessions[chatId];
@@ -243,17 +242,6 @@ async function getAIReply(text, name, chatId) {
     }
   }
 
-  // City naam check
-  const city = findCity(text);
-  if (city) {
-    const result = getHospitalPage(city, 0);
-    if (result) {
-      hospitalSessions[chatId] = { city, page: 0 };
-      return result;
-    }
-  }
-
-  // After hours
   if (!isOfficeHours()) {
     return `Assalam o Alaikum ${name},\n\nAap ka message موصول ho gaya hai.\nOffice hours (9:00 AM - 5:30 PM, Somvar se Juma) khatam ho chuki hain.\n\nAglay working day mein jawab diya jaye ga.\n\nEmergency medical ke liye:\nIGI Helpline: 042-345-03333 (24/7)\n\nShukriya — M&P Express HR Helpdesk`;
   }
@@ -313,7 +301,7 @@ Apni inquiry muntakhib farmaein:
 
 1 — HR Policies & Benefits
 2 — Office Timing & Attendance
-3 — Medical Panel Hospitals (city ka naam likhein)
+3 — Medical Panel Hospitals
 4 — Other HR Matters
 
 Option 1, 2, 3 ka jawab fehri mil jaye ga.
@@ -324,10 +312,18 @@ IGI Helpline: 042-345-03333 (24/7)`);
       return;
     }
 
-   // Option 3 — Hospital city poochho
+    // Option 3 — City poochho
     if (text.trim() === '3') {
       hospitalSessions[chatId] = { city: null, page: 0, waitingCity: true };
-      await sendMsg(chatId, `Aap kis city ke panel hospitals ki maloomat chahte hain?\n\nDastiyab cities:\nIslamabad, Rawalpindi, Karachi, Lahore, Multan, Peshawar, Faisalabad, Hyderabad, Quetta, Sialkot, Gujranwala, Abbottabad\n\nCity ka naam likhein:`);
+      await sendMsg(chatId,
+`Aap kis city ke panel hospitals ki maloomat chahte hain?
+
+Dastiyab cities:
+Islamabad, Rawalpindi, Karachi, Lahore, Multan,
+Peshawar, Faisalabad, Hyderabad, Quetta,
+Sialkot, Gujranwala, Abbottabad
+
+City ka naam likhein:`);
       return;
     }
 
@@ -339,7 +335,13 @@ IGI Helpline: 042-345-03333 (24/7)`);
         const result = getHospitalPage(city, 0);
         await sendMsg(chatId, result);
       } else {
-        await sendMsg(chatId, `Maafi, yeh city hamare database mein nahi hai.\n\nDobara city ka naam likhein:\nIslamabad, Karachi, Lahore, Multan, Peshawar, Faisalabad, Hyderabad, Quetta, Sialkot, Gujranwala, Abbottabad`);
+        await sendMsg(chatId,
+`Maafi, yeh city hamare database mein maujood nahi.
+
+Dobara likhein — dastiyab cities:
+Islamabad, Rawalpindi, Karachi, Lahore, Multan,
+Peshawar, Faisalabad, Hyderabad, Quetta,
+Sialkot, Gujranwala, Abbottabad`);
       }
       return;
     }
@@ -347,6 +349,11 @@ IGI Helpline: 042-345-03333 (24/7)`);
     // Baad ke messages — AI
     const reply = await getAIReply(text, name, chatId);
     await sendMsg(chatId, reply);
+
+  } catch (err) {
+    console.error('Webhook Error:', err.message);
+  }
+});
 
 app.get('/', (req, res) => {
   res.send(`HR Bot | OpenRouter: ${OPENROUTER_KEY ? 'YES' : 'NO'} | Instance: ${INSTANCE ? 'YES' : 'NO'} | PKT: ${getPKTHour()}:00 | Office: ${isOfficeHours() ? 'OPEN' : 'CLOSED'}`);
