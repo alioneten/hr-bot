@@ -3,39 +3,6 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-const HR_KNOWLEDGE = `Aap M&P Express Logistics ke HR Assistant hain.
-
-SAKHT HIDAYAT:
-- Sirf saf Urdu ya English mein jawab dein — Hindi words bilkul nahi
-- Sirf neeche di gayi maloomat ke mutabiq jawab dein
-- Agar sawaal knowledge base mein nahi hai to likhen:
-  "Yeh maloomat mere paas maujood nahi. HRBP se rabta karein."
-- Apni taraf se kuch bhi na banayein
-- Employee ke naam se mukhatib hon
-- Mukhtasar aur wazeh jawab dein
-
-LEAVES POLICY:
-- Casual Leave: 10 din/saal
-- Sick Leave: 8 din/saal
-- Annual Leave: 30 din/saal
-- Leave apply karne ke liye pehle supervisor ko batayein
-
-OFFICE TIMING:
-- Somvar se Juma: 9:00 AM - 5:30 PM (PKT)
-- Lunch Break: 1:00 PM - 2:00 PM
-- Late arrival grace period: 15 minute
-- Saturday aur Sunday: Band
-
-MEDICAL POLICY:
-- Panel hospital mein sirf IGI Health Card dikhayein
-- Emergency mein kisi bhi hospital ja sakte hain — baad mein claim karein
-- Medical claim form HR office se milta hai — 30 din ke andar jama karwayein
-- IGI Health Approvals: 042-345-03333 (24/7)
-
-HR CONTACT:
-- Email: hr@mp.com.pk
-- Phone: 0311-1111111`;
-
 const OPENROUTER_KEY = process.env.OPENROUTER_KEY;
 const INSTANCE = process.env.GREEN_INSTANCE_ID;
 const TOKEN = process.env.GREEN_API_TOKEN;
@@ -59,9 +26,9 @@ const HOSPITALS = {
     'Asghar Mall Hospital — Asghar Mall Road, Rawalpindi',
   ],
   'karachi': [
-    'Dr. Ziauddin Hospital Clifton — Clifton, Karachi',
-    'Dr. Ziauddin Hospital N.Nazimabad — North Nazimabad',
-    'Dr. Ziauddin Hospital Kemari — Kemari, Karachi',
+    'Dr. Ziauddin Hospital (Clifton) — Clifton, Karachi',
+    'Dr. Ziauddin Hospital (N. Nazimabad) — North Nazimabad',
+    'Dr. Ziauddin Hospital (Kemari) — Kemari, Karachi',
     'Dow University Hospital — KDA Scheme-33',
     'Boulevard Hospital — Korangi Road',
     'Aga Khan Hospital — M.A. Jinnah Road',
@@ -116,7 +83,7 @@ const HOSPITALS = {
     'Faisalabad Institute of Cardiology — Faisalabad',
     'National Hospital — Faisalabad',
     'Peoples Hospital — Faisalabad',
-    'DHQ Hospital — Faisalabad',
+    'District Headquarters Hospital — Faisalabad',
   ],
   'hyderabad': [
     'Aga Khan Maternity — Jamshoro Road',
@@ -132,7 +99,7 @@ const HOSPITALS = {
   'sialkot': [
     'Allama Iqbal Memorial Hospital — Commissioner Road',
     'Sardar Trust Hospital — Islamia College Road',
-    'DHQ Hospital — Sialkot',
+    'District Headquarters Hospital — Sialkot',
   ],
   'gujranwala': [
     'Gujranwala Teaching Hospital — Satellite Town',
@@ -147,48 +114,123 @@ const HOSPITALS = {
 };
 
 const PAGE_SIZE = 6;
-const sessions = {}; // chatId => { seen, waitingCity, city, page }
 
 // ============================================================
-// TIME
+// HR KNOWLEDGE BASE
 // ============================================================
-function getPKT() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }));
+const HR_KNOWLEDGE = `Aap M&P Express Logistics ke HR Assistant hain.
+
+SAKHT HIDAYAT:
+- Sirf saf Urdu ya English mein jawab dein — Hindi words bilkul nahi
+- Sirf neeche di gayi maloomat ke mutabiq jawab dein
+- Agar sawaal knowledge base mein nahi hai to likhen:
+  "Yeh maloomat mere paas maujood nahi. HRBP se rabta karein."
+- Apni taraf se kuch bhi na banayein
+- Mukhtasar aur wazeh jawab dein — 3 se 5 lines kafi hain
+- Jawab ke aakhir mein hamesha likhen: "0 — Main Menu"
+
+LEAVES POLICY:
+- Casual Leave: 10 din/saal
+- Sick Leave: 8 din/saal
+- Annual Leave: 30 din/saal
+- Leave apply ke liye pehle supervisor ko batayein
+
+OFFICE TIMING:
+- Somvar se Juma: 9:00 AM - 5:30 PM (PKT)
+- Lunch Break: 1:00 PM - 2:00 PM
+- Late arrival grace period: 15 minute
+- Saturday aur Sunday: Band
+
+MEDICAL POLICY:
+- Panel hospital mein sirf IGI Health Card dikhayein
+- Emergency mein kisi bhi hospital ja sakte hain — baad mein claim karein
+- Claim form HR office se milta hai — 30 din ke andar jama karwayein
+- IGI Health Approvals: 042-345-03333 (24/7)
+
+HR CONTACT:
+- Email: hr@mp.com.pk
+- Phone: 0311-1111111`;
+
+// ============================================================
+// SESSION STORAGE
+// session = { state, hospitalCity, hospitalPage, lastActive }
+// states: 'menu' | 'hospital_city' | 'hospital_list' | 'ai_chat'
+// ============================================================
+const sessions = {};
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minute
+
+function getSession(chatId) {
+  const now = Date.now();
+  const s = sessions[chatId];
+  // Session expired ya nahi hai — fresh start
+  if (!s || (now - s.lastActive) > SESSION_TIMEOUT) {
+    sessions[chatId] = { state: 'new', lastActive: now };
+  } else {
+    sessions[chatId].lastActive = now;
+  }
+  return sessions[chatId];
+}
+
+function setSession(chatId, data) {
+  sessions[chatId] = { ...sessions[chatId], ...data, lastActive: Date.now() };
+}
+
+// ============================================================
+// TIME FUNCTIONS
+// ============================================================
+function getPKTHour() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })).getHours();
 }
 
 function isOfficeHours() {
-  const t = getPKT();
-  return t.getDay() >= 1 && t.getDay() <= 5 && t.getHours() >= 9 && t.getHours() < 18;
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }));
+  return now.getDay() >= 1 && now.getDay() <= 5 && now.getHours() >= 9 && now.getHours() < 18;
 }
 
 function getGreeting() {
-  const h = getPKT().getHours();
-  if (h >= 5 && h < 12) return 'Assalam o Alaikum! Subh Bakhair';
+  const h = getPKTHour();
+  if (h >= 5  && h < 12) return 'Assalam o Alaikum! Subh Bakhair';
   if (h >= 12 && h < 17) return 'Assalam o Alaikum! Dopahar Bakhair';
   if (h >= 17 && h < 21) return 'Assalam o Alaikum! Shaam Bakhair';
   return 'Assalam o Alaikum! Shab Bakhair';
 }
 
 // ============================================================
-// HOSPITAL HELPERS
+// MAIN MENU
+// ============================================================
+function mainMenu(name) {
+  return `${getGreeting()} ${name},
+
+M&P Express HR Helpdesk mein khush aamdeed.
+Apni inquiry muntakhib farmaein:
+
+1 — HR Policies & Benefits
+2 — Office Timing & Attendance
+3 — Medical Panel Hospitals
+4 — Other HR Matters
+
+Emergency medical:
+IGI Helpline: 042-345-03333 (24/7)`;
+}
+
+// ============================================================
+// HOSPITAL PAGINATION
 // ============================================================
 function getHospitalPage(city, page) {
   const list = HOSPITALS[city];
   if (!list) return null;
   const start = page * PAGE_SIZE;
   const chunk = list.slice(start, start + PAGE_SIZE);
-  if (!chunk.length) return null;
+  if (chunk.length === 0) return null;
   const total = list.length;
   const shown = Math.min(start + PAGE_SIZE, total);
-  let msg = `IGI Panel Hospitals — ${city.charAt(0).toUpperCase() + city.slice(1)}\n`;
-  msg += `(${start + 1}–${shown} / ${total})\n\n`;
+  const hasMore = shown < total;
+  let msg = `IGI Panel Hospitals — ${city.charAt(0).toUpperCase() + city.slice(1)}:\n(${start + 1}–${shown} / ${total})\n\n`;
   chunk.forEach((h, i) => { msg += `${start + i + 1}. ${h}\n`; });
-  msg += `\nIGI Helpline: 042-345-03333 (24/7)`;
-  if (start + PAGE_SIZE < total) {
-    msg += `\n\nMazeed dekhne ke liye "aur" likhein`;
-  } else {
-    msg += `\n\n${city} ki poori list mukammal ho gayi`;
-  }
+  msg += `\nIGI Approvals: 042-345-03333 (24/7)`;
+  msg += hasMore
+    ? `\n\n"aur" — mazeed hospitals\n"0" — Main Menu`
+    : `\n\n--- Poori list mukammal ---\n\n"0" — Main Menu`;
   return msg;
 }
 
@@ -201,26 +243,34 @@ function findCity(text) {
 }
 
 function wantsMore(text) {
-  const t = text.toLowerCase().trim();
-  return ['aur', 'more', 'mazeed', 'next', 'agla'].some(w => t.includes(w));
+  return ['aur', 'more', 'mazeed', 'next', 'agla'].some(w => text.toLowerCase().includes(w));
+}
+
+function wantsMenu(text) {
+  return text.trim() === '0' || text.toLowerCase().includes('menu') || text.toLowerCase().includes('wapas');
 }
 
 // ============================================================
-// SEND
+// SEND MESSAGE
 // ============================================================
-async function sendMsg(chatId, msg) {
+async function sendMsg(chatId, message) {
   try {
     await axios.post(
-      `https://api.green-api.com/waInstance${INSTANCE}/sendMessage/${TOKEN}`,
-      { chatId, message: msg }
+      'https://api.green-api.com/waInstance' + INSTANCE + '/sendMessage/' + TOKEN,
+      { chatId, message }
     );
-  } catch (e) { console.error('Send error:', e.message); }
+  } catch (err) {
+    console.error('Send Error:', err.message);
+  }
 }
 
 // ============================================================
-// AI
+// AI REPLY
 // ============================================================
-async function askAI(text, name) {
+async function getAIReply(text, name) {
+  if (!isOfficeHours()) {
+    return `Assalam o Alaikum ${name},\n\nOffice hours (9AM–5:30PM, Somvar–Juma) khatam ho chuki hain.\nAglay working day mein jawab diya jaye ga.\n\nEmergency: IGI Helpline 042-345-03333 (24/7)\n\n0 — Main Menu`;
+  }
   const MODELS = [
     'nvidia/nemotron-3-super-120b-a12b:free',
     'tencent/hy3-preview:free',
@@ -234,35 +284,18 @@ async function askAI(text, name) {
           model,
           messages: [
             { role: 'system', content: HR_KNOWLEDGE },
-            { role: 'user', content: `${name} ka sawaal: ${text}` }
+            { role: 'user', content: `"${name}" ka sawaal: ${text}` }
           ]
         },
-        { headers: { 'Authorization': `Bearer ${OPENROUTER_KEY}`, 'Content-Type': 'application/json' } }
+        { headers: { 'Authorization': 'Bearer ' + OPENROUTER_KEY, 'Content-Type': 'application/json' } }
       );
-      const reply = res.data?.choices?.[0]?.message?.content;
-      if (reply) { console.log('Model OK:', model); return reply; }
-    } catch (e) { console.log('Model fail:', model); }
+      const reply = res.data.choices[0].message.content;
+      if (reply) return reply;
+    } catch (err) {
+      console.log('Failed: ' + model);
+    }
   }
-  return `Maafi, system busy hai. Rabta karein: hr@mp.com.pk | 0311-1111111`;
-}
-
-// ============================================================
-// WELCOME MESSAGE
-// ============================================================
-function welcomeMsg(name) {
-  return `${getGreeting()} ${name},
-
-M&P Express HR Helpdesk mein khush aamdeed.
-
-Apni inquiry muntakhib farmaein:
-
-1 — HR Policies & Benefits
-2 — Office Timing & Attendance
-3 — Medical Panel Hospitals
-4 — Other HR Matters
-
-Option 4 ke liye HRBP online hone par jawab diya jaye ga.
-Emergency: IGI Helpline 042-345-03333 (24/7)`;
+  return `Maafi, system busy hai. HR rabta: hr@mp.com.pk | 0311-1111111\n\n0 — Main Menu`;
 }
 
 // ============================================================
@@ -273,28 +306,53 @@ app.post('/webhook', async (req, res) => {
   try {
     const body = req.body;
     if (body.typeWebhook !== 'incomingMessageReceived') return;
-
     const chatId = body.senderData?.chatId;
-    const text = body.messageData?.textMessageData?.textMessage?.trim();
+    const text = body.messageData?.textMessageData?.textMessage;
     const name = body.senderData?.senderName || 'Employee';
-
     if (!chatId || !text) return;
     if (chatId.includes('@g.us')) return;
 
-    // Session initialize
-    if (!sessions[chatId]) sessions[chatId] = { seen: false, waitingCity: false, city: null, page: 0 };
-    const s = sessions[chatId];
+    const session = getSession(chatId);
 
-    // Pehla message — welcome
-    if (!s.seen) {
-      s.seen = true;
-      await sendMsg(chatId, welcomeMsg(name));
+    // 0 — Hamesha main menu
+    if (wantsMenu(text)) {
+      setSession(chatId, { state: 'menu' });
+      await sendMsg(chatId, mainMenu(name));
       return;
     }
 
-    // Option 3 — hospital
-    if (text === '3') {
-      s.waitingCity = true;
+    // Naya session ya pehla message
+    if (session.state === 'new') {
+      setSession(chatId, { state: 'menu' });
+      await sendMsg(chatId, mainMenu(name));
+      return;
+    }
+
+    // Option 1 — HR Policies
+    if (text.trim() === '1') {
+      setSession(chatId, { state: 'ai_chat' });
+      await sendMsg(chatId, `HR Policies ke baare mein apna sawaal likhein:\n\n(Leaves, Medical, ya koi aur policy)\n\n0 — Main Menu`);
+      return;
+    }
+
+    // Option 2 — Office Timing
+    if (text.trim() === '2') {
+      setSession(chatId, { state: 'menu' });
+      await sendMsg(chatId,
+`Office Timing — M&P Express:
+
+Somvar se Juma: 9:00 AM – 5:30 PM
+Lunch Break: 1:00 PM – 2:00 PM
+Late Arrival Grace: 15 minute
+Saturday & Sunday: Band
+
+0 — Main Menu`);
+      return;
+    }
+
+    // Option 3 — Hospitals
+    if (text.trim() === '3') {
+      setSession(chatId, { state: 'hospital_city' });
       await sendMsg(chatId,
 `Aap kis city ke panel hospitals ki maloomat chahte hain?
 
@@ -303,66 +361,70 @@ Islamabad, Rawalpindi, Karachi, Lahore,
 Multan, Peshawar, Faisalabad, Hyderabad,
 Quetta, Sialkot, Gujranwala, Abbottabad
 
-City ka naam likhein:`);
+City ka naam likhein:
+0 — Main Menu`);
       return;
     }
 
-    // City wait
-    if (s.waitingCity) {
+    // Option 4 — Other
+    if (text.trim() === '4') {
+      setSession(chatId, { state: 'ai_chat' });
+      await sendMsg(chatId, `Apna sawaal likhein — HRBP online hone par jawab diya jaye ga.\n\n0 — Main Menu`);
+      return;
+    }
+
+    // Hospital city wait
+    if (session.state === 'hospital_city') {
       const city = findCity(text);
       if (city) {
-        s.waitingCity = false;
-        s.city = city;
-        s.page = 0;
+        setSession(chatId, { state: 'hospital_list', hospitalCity: city, hospitalPage: 0 });
         await sendMsg(chatId, getHospitalPage(city, 0));
       } else {
-        await sendMsg(chatId, `Yeh city database mein nahi hai. Dobara likhein:\nIslamabad, Rawalpindi, Karachi, Lahore, Multan, Peshawar, Faisalabad, Hyderabad, Quetta, Sialkot, Gujranwala, Abbottabad`);
+        await sendMsg(chatId,
+`Maafi, yeh city database mein nahi hai.
+
+Dobara likhein:
+Islamabad, Rawalpindi, Karachi, Lahore,
+Multan, Peshawar, Faisalabad, Hyderabad,
+Quetta, Sialkot, Gujranwala, Abbottabad
+
+0 — Main Menu`);
       }
       return;
     }
 
-    // Mazeed hospitals
-    if (wantsMore(text) && s.city) {
-      s.page += 1;
-      const result = getHospitalPage(s.city, s.page);
+    // Hospital list — aur
+    if (session.state === 'hospital_list' && wantsMore(text)) {
+      const nextPage = (session.hospitalPage || 0) + 1;
+      const result = getHospitalPage(session.hospitalCity, nextPage);
       if (result) {
+        setSession(chatId, { hospitalPage: nextPage });
         await sendMsg(chatId, result);
       } else {
-        s.city = null;
-        s.page = 0;
-        await sendMsg(chatId, `${s.city} ki poori list bhej di gayi.\nIGI Helpline: 042-345-03333 (24/7)`);
+        setSession(chatId, { state: 'menu' });
+        await sendMsg(chatId, `${session.hospitalCity} ki poori list bhej di gayi.\n\nIGI: 042-345-03333 (24/7)\n\n0 — Main Menu`);
       }
       return;
     }
 
-    // After office hours
-    if (!isOfficeHours()) {
-      await sendMsg(chatId,
-`Assalam o Alaikum ${name},
-
-Office hours (9AM - 5:30PM, Somvar se Juma) khatam ho chuki hain.
-
-Aap ka message record ho gaya — aglay working day jawab diya jaye ga.
-
-Emergency medical:
-IGI Helpline: 042-345-03333 (24/7)
-
-Shukriya — M&P Express HR Helpdesk`);
+    // AI chat
+    if (session.state === 'ai_chat') {
+      const reply = await getAIReply(text, name);
+      await sendMsg(chatId, reply);
       return;
     }
 
-    // AI jawab
-    const reply = await askAI(text, name);
-    await sendMsg(chatId, reply);
+    // Default — menu dikhao
+    setSession(chatId, { state: 'menu' });
+    await sendMsg(chatId, mainMenu(name));
 
-  } catch (e) {
-    console.error('Webhook error:', e.message);
+  } catch (err) {
+    console.error('Webhook Error:', err.message);
   }
 });
 
 app.get('/', (req, res) => {
-  const t = getPKT();
-  res.send(`HR Bot OK | Office: ${isOfficeHours() ? 'OPEN' : 'CLOSED'} | PKT: ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`);
+  res.send(`HR Bot | OpenRouter: ${OPENROUTER_KEY ? 'YES' : 'NO'} | Instance: ${INSTANCE ? 'YES' : 'NO'} | PKT: ${getPKTHour()}:00 | Office: ${isOfficeHours() ? 'OPEN' : 'CLOSED'}`);
 });
 
 app.listen(process.env.PORT || 8080, () => console.log('Bot started!'));
