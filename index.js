@@ -14,7 +14,7 @@ TIMING: Somvar-Juma 9AM-6PM, Lunch 1-2PM
 HR: hr@mp.com.pk | 0311-1111111`;
 
 const MODELS = [
-  'deepseek/deepseek-r1-distill-qwen-1.5b:free',
+  'nvidia/nemotron-super-49b-v1:free',
   'qwen/qwen-2-7b-instruct:free',
   'openchat/openchat-7b:free'
 ];
