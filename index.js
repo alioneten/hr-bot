@@ -34,16 +34,16 @@ const HOSPITALS = {
     'Holy Family Hospital — Satellite Town',
   ],
   karachi: [
-    'Dr. Ziauddin Hospital (Clifton)',
-    'Dow University Hospital',
     'Aga Khan Hospital',
-    'Indus Hospital'
+    'Ziauddin Hospital',
+    'Indus Hospital',
+    'Dow University Hospital',
   ],
   lahore: [
     'Doctors Hospital',
     'National Hospital',
     'Ittefaq Hospital',
-    'Ganga Ram Hospital'
+    'Ganga Ram Hospital',
   ],
 };
 
@@ -54,9 +54,9 @@ const PAGE_SIZE = 6;
 // ============================================================
 const HR_KNOWLEDGE = `Aap M&P Express Logistics ke HR Assistant hain.
 
-SAKHT HIDAYAT:
+HIDAYAT:
 - Sirf saf Urdu ya English
-- Mukhtasar jawab (3–5 lines)
+- Mukhtasir jawab (3–5 lines)
 - Agar maloomat na ho: "Yeh maloomat mere paas nahi. HRBP se rabta karein."
 - Jawab ke aakhir mein: "0 — Main Menu"
 
@@ -65,10 +65,10 @@ LEAVES:
 - Sick: 8
 - Annual: 30
 
-OFFICE TIMINGS:
+OFFICE:
 - Mon–Fri: 9:00AM – 5:30PM
 - Lunch: 1–2PM
-- Weekend: Off
+- Weekend: Band
 
 MEDICAL:
 - Panel hospital: IGI Card
@@ -81,18 +81,12 @@ MEDICAL:
 const sessions = {};
 const SESSION_TIMEOUT = 30 * 60 * 1000;
 
-// ✅ BUG FIX: HRBP active with timeout
-// chatId => timestamp
-const hrbpActive = new Map();
-
 function getSession(chatId) {
   const now = Date.now();
-  const s = sessions[chatId];
-  if (!s || now - s.lastActive > SESSION_TIMEOUT) {
+  if (!sessions[chatId] || now - sessions[chatId].lastActive > SESSION_TIMEOUT) {
     sessions[chatId] = { state: 'new', lastActive: now };
-  } else {
-    sessions[chatId].lastActive = now;
   }
+  sessions[chatId].lastActive = now;
   return sessions[chatId];
 }
 
@@ -104,11 +98,15 @@ function setSession(chatId, data) {
 // TIME & GREETING
 // ============================================================
 function getPKTHour() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })).getHours();
+  return new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })
+  ).getHours();
 }
 
 function isOfficeHours() {
-  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }));
+  const d = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })
+  );
   return d.getDay() >= 1 && d.getDay() <= 5 && d.getHours() >= 9 && d.getHours() < 18;
 }
 
@@ -138,10 +136,12 @@ IGI Helpline 042-345-03333 (24/7)`;
 }
 
 // ============================================================
-// HOSPITAL FUNCTIONS
+// HOSPITAL HELPERS
 // ============================================================
 function findCity(text) {
-  return Object.keys(HOSPITALS).find(c => text.toLowerCase().includes(c)) || null;
+  return Object.keys(HOSPITALS).find(c =>
+    text.toLowerCase().includes(c)
+  ) || null;
 }
 
 function getHospitalPage(city, page) {
@@ -151,16 +151,19 @@ function getHospitalPage(city, page) {
   if (!chunk.length) return null;
 
   let msg = `IGI Panel Hospitals — ${city.toUpperCase()}:\n\n`;
-  chunk.forEach((h, i) => msg += `${start + i + 1}. ${h}\n`);
-  msg += `\n"aur" — Mazeed\n"0" — Main Menu`;
+  chunk.forEach((h, i) => {
+    msg += `${start + i + 1}. ${h}\n`;
+  });
+  msg += `\n"aur" — Mazeed hospitals\n"0" — Main Menu`;
   return msg;
 }
 
-function wantsMenu(txt) {
-  return ['0', 'menu', 'back', 'wapas'].includes(txt.trim().toLowerCase());
+function wantsMenu(text) {
+  return ['0', 'menu', 'wapas', 'back'].includes(text.trim().toLowerCase());
 }
-function wantsMore(txt) {
-  return ['aur', 'more', 'next', 'mazeed'].includes(txt.trim().toLowerCase());
+
+function wantsMore(text) {
+  return ['aur', 'more', 'next', 'mazeed'].includes(text.trim().toLowerCase());
 }
 
 // ============================================================
@@ -178,7 +181,10 @@ async function sendMsg(chatId, message) {
 // ============================================================
 async function getAIReply(text, name) {
   if (!isOfficeHours()) {
-    return `Office hours khatam ho chuki hain.\nNext working day reply mile ga.\n\n0 — Main Menu`;
+    return `Office hours khatam ho chuki hain.
+Agla working day jawab diya jaye ga.
+
+0 — Main Menu`;
   }
 
   const res = await axios.post(
@@ -203,36 +209,17 @@ app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
 
   try {
-    const b = req.body;
-    const type = b.typeWebhook;
+    const body = req.body;
 
-    // ✅ BUG FIX: sirf human HRBP manual reply
-    if (type === 'outgoingMessageReceived' && b.senderData?.fromMe === true) {
-      const chatId = b.chatData?.chatId;
-      if (chatId) hrbpActive.set(chatId, Date.now());
-      return;
-    }
+    if (body.typeWebhook !== 'incomingMessageReceived') return;
 
-    if (type !== 'incomingMessageReceived') return;
-
-    const chatId = b.senderData?.chatId;
-    const text = b.messageData?.textMessageData?.textMessage;
-    const name = b.senderData?.senderName || 'Employee';
+    const chatId = body.senderData?.chatId;
+    const text = body.messageData?.textMessageData?.textMessage;
+    const name = body.senderData?.senderName || 'Employee';
 
     if (!chatId || !text || chatId.includes('@g.us')) return;
 
-    // ✅ HRBP mute 15 minutes
-    if (hrbpActive.has(chatId)) {
-      if (Date.now() - hrbpActive.get(chatId) < 15 * 60 * 1000) {
-        if (wantsMenu(text)) {
-          hrbpActive.delete(chatId);
-          setSession(chatId, { state: 'menu' });
-          await sendMsg(chatId, mainMenu(name));
-        }
-        return;
-      }
-      hrbpActive.delete(chatId);
-    }
+    console.log('Incoming:', chatId, text);
 
     const session = getSession(chatId);
 
@@ -248,18 +235,23 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    if (text === '1') {
+    if (text.trim() === '1') {
       setSession(chatId, { state: 'ai_chat' });
       await sendMsg(chatId, 'HR policy ka sawaal likhein.\n\n0 — Menu');
       return;
     }
 
-    if (text === '2') {
-      await sendMsg(chatId, `Office Timing:\nMon–Fri 9:00–5:30\n\n0 — Menu`);
+    if (text.trim() === '2') {
+      await sendMsg(chatId,
+`Office Timing:
+Mon–Fri: 9:00–5:30
+Lunch: 1–2
+
+0 — Menu`);
       return;
     }
 
-    if (text === '3') {
+    if (text.trim() === '3') {
       setSession(chatId, { state: 'hospital_city' });
       await sendMsg(chatId, 'City ka naam likhein.\n\n0 — Menu');
       return;
@@ -271,7 +263,11 @@ app.post('/webhook', async (req, res) => {
         await sendMsg(chatId, 'Yeh city list mein nahi.\nDobara likhein.\n\n0 — Menu');
         return;
       }
-      setSession(chatId, { state: 'hospital_list', hospitalCity: city, hospitalPage: 0 });
+      setSession(chatId, {
+        state: 'hospital_list',
+        hospitalCity: city,
+        hospitalPage: 0
+      });
       await sendMsg(chatId, getHospitalPage(city, 0));
       return;
     }
@@ -297,12 +293,13 @@ app.post('/webhook', async (req, res) => {
 
     await sendMsg(chatId, mainMenu(name));
 
-  } catch (e) {
-    console.error('Webhook error:', e.message);
+  } catch (err) {
+    console.error('Webhook Error:', err.message);
   }
 });
 
 // ============================================================
-app.get('/', (_, res) => res.send('✅ HR Bot Running'));
-app.listen(process.env.PORT || 8080, () => console.log('✅ Bot started'));
-``
+app.get('/', (_, res) => res.send('✅ HR Bot is running'));
+app.listen(process.env.PORT || 8080, () => {
+  console.log('✅ Bot started successfully');
+});
