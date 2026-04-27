@@ -13,29 +13,41 @@ LEAVES: Casual 10, Sick 8, Annual 14 din/saal
 TIMING: Somvar-Juma 9AM-6PM, Lunch 1-2PM
 HR: hr@mp.com.pk | 0311-1111111`;
 
+const MODELS = [
+  'deepseek/deepseek-r1-distill-qwen-1.5b:free',
+  'qwen/qwen-2-7b-instruct:free',
+  'openchat/openchat-7b:free'
+];
+
 async function getReply(text, name) {
-  try {
-    const res = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model: 'google/gemma-3-1b-it:free',
-        messages: [
-          { role: 'system', content: HR_INFO },
-          { role: 'user', content: name + ' poochh raha hai: ' + text }
-        ]
-      },
-      {
-        headers: {
-          'Authorization': 'Bearer ' + OPENROUTER_KEY,
-          'Content-Type': 'application/json'
+  for (const model of MODELS) {
+    try {
+      const res = await axios.post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          model: model,
+          messages: [
+            { role: 'system', content: HR_INFO },
+            { role: 'user', content: name + ' poochh raha hai: ' + text }
+          ]
+        },
+        {
+          headers: {
+            'Authorization': 'Bearer ' + OPENROUTER_KEY,
+            'Content-Type': 'application/json'
+          }
         }
+      );
+      const reply = res.data.choices[0].message.content;
+      if (reply) {
+        console.log('Model worked: ' + model);
+        return reply;
       }
-    );
-    return res.data.choices[0].message.content;
-  } catch (err) {
-    console.error('OpenRouter Error:', err.response?.data || err.message);
-    return 'Maafi, system busy hai. HR se rabta karein: 0311-1111111';
+    } catch (err) {
+      console.log('Model failed: ' + model + ' | trying next...');
+    }
   }
+  return 'Maafi, system busy hai. HR se rabta karein: 0311-1111111';
 }
 
 async function sendMsg(chatId, message) {
