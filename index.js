@@ -14,9 +14,9 @@ TIMING: Somvar-Juma 9AM-6PM, Lunch 1-2PM
 HR: hr@mp.com.pk | 0311-1111111`;
 
 const MODELS = [
-  'nvidia/nemotron-super-49b-v1:free',
-  'qwen/qwen-2-7b-instruct:free',
-  'openchat/openchat-7b:free'
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'tencent/hy3-preview:free',
+  'nvidia/nemotron-nano-12b-v2-vl:free',
 ];
 
 async function getReply(text, name) {
