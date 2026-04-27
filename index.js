@@ -8,19 +8,6 @@ const INSTANCE = process.env.GREEN_INSTANCE_ID;
 const TOKEN = process.env.GREEN_API_TOKEN;
 
 // ============================================================
-// SECURITY
-// ============================================================
-const WHITELIST = new Set([
-  '923001234567@c.us',
-  '923111234567@c.us',
-]);
-
-const EMPLOYEE_DB = {
-  'EMP001': '923001234567@c.us',
-  'EMP002': '923111234567@c.us',
-};
-
-// ============================================================
 // PANEL HOSPITALS — Yahan apni complete list daalen
 // Format: 'city': ['Hospital Name — Address', ...]
 // ============================================================
