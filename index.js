@@ -3,82 +3,77 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-// ============================================================
-//  CONFIGURATION
-// ============================================================
-const CONFIG = {
-  GEMINI_API_KEY:     process.env.GEMINI_API_KEY,
-  GREEN_INSTANCE_ID:  process.env.GREEN_INSTANCE_ID,
-  GREEN_API_TOKEN:    process.env.GREEN_API_TOKEN,
-};
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const INSTANCE = process.env.GREEN_INSTANCE_ID;
+const TOKEN = process.env.GREEN_API_TOKEN;
 
-const HR_KNOWLEDGE = `
+const HR_INFO = `
 Aap M&P Express Logistics ke HR Assistant hain.
-POLICIES: Casual 10, Sick 8, Annual 14 leaves. Timing 9AM-6PM.
-Sirf HR se mutaliq sawaalon ke mukhtasir jawab Urdu/English mein dein.
+Sirf HR sawaalon ka jawab dein. Urdu ya English mein.
+
+LEAVES:
+- Casual Leave: 10 din/saal
+- Sick Leave: 8 din/saal
+- Annual Leave: 14 din/saal
+
+TIMING:
+- Somvar se Juma: 9AM - 6PM
+- Lunch: 1PM - 2PM
+
+HR CONTACT:
+- HR Email: hr@mp.com.pk
+- HR Number: 0311-1111111
 `;
 
-// ============================================================
-//  GEMINI AI — Multi-Model Fallback
-// ============================================================
-async function getAIReply(userMessage, senderName) {
-  // Hum pehle Flash try karenge, phir Pro
-  const models = ['gemini-1.5-flash', 'gemini-pro'];
-  
-  for (let modelName of models) {
-    try {
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${CONFIG.GEMINI_API_KEY}`,
-        {
-          contents: [{ parts: [{ text: `${HR_KNOWLEDGE}\n\nEmployee: ${senderName}\nSawaal: ${userMessage}` }] }]
-        }
-      );
-
-      if (response.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-        return response.data.candidates[0].content.parts[0].text;
-      }
-    } catch (err) {
-      console.error(`Model ${modelName} failed, trying next...`);
-    }
-  }
-  return "Maafi chahta hoon, system is waqt busy hai. Baraye meherbani thodi der baad koshish karein.";
-}
-
-// ============================================================
-//  GREEN API SEND
-// ============================================================
-async function sendReply(chatId, message) {
+async function getReply(text, name) {
   try {
-    const url = `https://api.green-api.com/waInstance${CONFIG.GREEN_INSTANCE_ID}/sendMessage/${CONFIG.GREEN_API_TOKEN}`;
-    await axios.post(url, { chatId, message });
+    const res = await axios.post(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
+      {
+        contents: [{
+          parts: [{
+            text: HR_INFO + '\n\nEmployee: ' + name + '\nSawaal: ' + text + '\n\nMukhtasar jawab do:'
+          }]
+        }]
+      }
+    );
+    return res.data.candidates[0].content.parts[0].text;
   } catch (err) {
-    console.error('Green API Send Error:', err.message);
+    console.error('Gemini Error:', err.response?.data || err.message);
+    return 'Maafi, abhi system busy hai. HR office se rabta karein.';
   }
 }
 
-// ============================================================
-//  WEBHOOK
-// ============================================================
+async function sendMsg(chatId, message) {
+  try {
+    await axios.post(
+      'https://api.green-api.com/waInstance' + INSTANCE + '/sendMessage/' + TOKEN,
+      { chatId, message }
+    );
+  } catch (err) {
+    console.error('Send Error:', err.message);
+  }
+}
+
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
   try {
     const body = req.body;
     if (body.typeWebhook !== 'incomingMessageReceived') return;
-
     const chatId = body.senderData?.chatId;
     const text = body.messageData?.textMessageData?.textMessage;
-    const senderName = body.senderData?.senderName || 'Employee';
-
-    if (chatId && text) {
-      const reply = await getAIReply(text, senderName);
-      await sendReply(chatId, reply);
-    }
+    const name = body.senderData?.senderName || 'Employee';
+    if (!chatId || !text) return;
+    if (chatId.includes('@g.us')) return;
+    const reply = await getReply(text, name);
+    await sendMsg(chatId, reply);
   } catch (err) {
-    console.error('Webhook Main Error:', err.message);
+    console.error('Webhook Error:', err.message);
   }
 });
 
-app.get('/', (req, res) => res.send('HR Bot is Online!'));
+app.get('/', (req, res) => {
+  res.send('HR Bot Online! Key set: ' + (GEMINI_KEY ? 'YES' : 'NO') + ' | Instance: ' + (INSTANCE ? 'YES' : 'NO'));
+});
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(process.env.PORT || 8080, () => console.log('Bot started!'));
