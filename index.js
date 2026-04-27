@@ -3,44 +3,39 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const OPENROUTER_KEY = process.env.OPENROUTER_KEY;
 const INSTANCE = process.env.GREEN_INSTANCE_ID;
 const TOKEN = process.env.GREEN_API_TOKEN;
 
-const HR_INFO = `
-Aap M&P Express Logistics ke HR Assistant hain.
-Sirf HR sawaalon ka jawab dein. Urdu ya English mein.
+const HR_INFO = `Aap M&P Express Logistics ke HR Assistant hain.
+Sirf HR sawaalon ka jawab dein. Urdu ya English mein. Mukhtasar jawab.
 
-LEAVES:
-- Casual Leave: 10 din/saal
-- Sick Leave: 8 din/saal
-- Annual Leave: 14 din/saal
-
-TIMING:
-- Somvar se Juma: 9AM - 6PM
-- Lunch: 1PM - 2PM
-
-HR CONTACT:
-- HR Email: hr@mp.com.pk
-- HR Number: 0311-1111111
-`;
+LEAVES: Casual 10, Sick 8, Annual 14 din/saal
+TIMING: Somvar-Juma 9AM-6PM, Lunch 1-2PM
+HR: hr@mp.com.pk | 0311-1111111`;
 
 async function getReply(text, name) {
   try {
     const res = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
+      'https://openrouter.ai/api/v1/chat/completions',
       {
-        contents: [{
-          parts: [{
-            text: HR_INFO + '\n\nEmployee: ' + name + '\nSawaal: ' + text + '\n\nMukhtasar jawab do:'
-          }]
-        }]
+        model: 'meta-llama/llama-3.1-8b-instruct:free',
+        messages: [
+          { role: 'system', content: HR_INFO },
+          { role: 'user', content: name + ' poochh raha hai: ' + text }
+        ]
+      },
+      {
+        headers: {
+          'Authorization': 'Bearer ' + OPENROUTER_KEY,
+          'Content-Type': 'application/json'
+        }
       }
     );
-    return res.data.candidates[0].content.parts[0].text;
+    return res.data.choices[0].message.content;
   } catch (err) {
-    console.error('Gemini Error:', err.response?.data || err.message);
-    return 'Maafi, abhi system busy hai. HR office se rabta karein.';
+    console.error('OpenRouter Error:', err.response?.data || err.message);
+    return 'Maafi, system busy hai. HR se rabta karein: 0311-1111111';
   }
 }
 
@@ -73,7 +68,7 @@ app.post('/webhook', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('HR Bot Online! Key set: ' + (GEMINI_KEY ? 'YES' : 'NO') + ' | Instance: ' + (INSTANCE ? 'YES' : 'NO'));
+  res.send('HR Bot Online! OpenRouter: ' + (OPENROUTER_KEY ? 'YES' : 'NO') + ' | Instance: ' + (INSTANCE ? 'YES' : 'NO'));
 });
 
 app.listen(process.env.PORT || 8080, () => console.log('Bot started!'));
