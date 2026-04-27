@@ -324,14 +324,29 @@ IGI Helpline: 042-345-03333 (24/7)`);
       return;
     }
 
+   // Option 3 — Hospital city poochho
+    if (text.trim() === '3') {
+      hospitalSessions[chatId] = { city: null, page: 0, waitingCity: true };
+      await sendMsg(chatId, `Aap kis city ke panel hospitals ki maloomat chahte hain?\n\nDastiyab cities:\nIslamabad, Rawalpindi, Karachi, Lahore, Multan, Peshawar, Faisalabad, Hyderabad, Quetta, Sialkot, Gujranwala, Abbottabad\n\nCity ka naam likhein:`);
+      return;
+    }
+
+    // City wait mein hai
+    if (hospitalSessions[chatId]?.waitingCity) {
+      const city = findCity(text);
+      if (city) {
+        hospitalSessions[chatId] = { city, page: 0, waitingCity: false };
+        const result = getHospitalPage(city, 0);
+        await sendMsg(chatId, result);
+      } else {
+        await sendMsg(chatId, `Maafi, yeh city hamare database mein nahi hai.\n\nDobara city ka naam likhein:\nIslamabad, Karachi, Lahore, Multan, Peshawar, Faisalabad, Hyderabad, Quetta, Sialkot, Gujranwala, Abbottabad`);
+      }
+      return;
+    }
+
     // Baad ke messages — AI
     const reply = await getAIReply(text, name, chatId);
     await sendMsg(chatId, reply);
-
-  } catch (err) {
-    console.error('Webhook Error:', err.message);
-  }
-});
 
 app.get('/', (req, res) => {
   res.send(`HR Bot | OpenRouter: ${OPENROUTER_KEY ? 'YES' : 'NO'} | Instance: ${INSTANCE ? 'YES' : 'NO'} | PKT: ${getPKTHour()}:00 | Office: ${isOfficeHours() ? 'OPEN' : 'CLOSED'}`);
