@@ -10,8 +10,8 @@ const TOKEN = process.env.GREEN_API_TOKEN;
 const HR_INFO = `Aap M&P Express Logistics ke HR Assistant hain.
 Sirf HR sawaalon ka jawab dein. Urdu ya English mein. Mukhtasar jawab.
 LEAVES: Casual 10, Sick 8, Annual 14 din/saal
-TIMING: Somvar-Juma 9AM-6PM, Lunch 1-2PM
-HR: hr@mp.com.pk | 0311-1111111`;
+TIMING: Monday-Friday 9:00 AM-05:30 PM, Lunch 1-2 PM
+HR: ali.abbas@mulphilog.com | 0316-0020103`;
 
 const MODELS = [
   'nvidia/nemotron-3-super-120b-a12b:free',
