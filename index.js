@@ -8,6 +8,19 @@ const INSTANCE = process.env.GREEN_INSTANCE_ID;
 const TOKEN = process.env.GREEN_API_TOKEN;
 
 // ============================================================
+// SECURITY
+// ============================================================
+const WHITELIST = new Set([
+  '923001234567@c.us',
+  '923111234567@c.us',
+]);
+
+const EMPLOYEE_DB = {
+  'EMP001': '923001234567@c.us',
+  'EMP002': '923111234567@c.us',
+};
+
+// ============================================================
 // PANEL HOSPITALS — Yahan apni complete list daalen
 // Format: 'city': ['Hospital Name — Address', ...]
 // ============================================================
@@ -141,10 +154,10 @@ LEAVES POLICY:
 - Leave apply karne ke liye pehle supervisor ko batayein
 
 OFFICE TIMING:
-- Monday to Saturday: 9:00 AM - 5:30 PM (PKT)
+- Somvar se Juma: 9:00 AM - 5:30 PM (PKT)
 - Lunch Break: 1:00 PM - 2:00 PM
 - Late arrival grace period: 15 minute
-- Sunday: Band
+- Saturday aur Sunday: Band
 
 MEDICAL POLICY:
 - Panel hospital mein sirf IGI Health Card dikhayein — koi payment nahi
@@ -154,7 +167,7 @@ MEDICAL POLICY:
 
 HR CONTACT:
 - Email: hr@mp.com.pk
-- Phone: 0316-0020103`;
+- Phone: 0311-1111111`;
 
 // ============================================================
 // TIME FUNCTIONS
@@ -304,3 +317,77 @@ async function getAIReply(text, name, chatId) {
   return `Maafi ${name}, system busy hai. Meherbani kar ke hr@mp.com.pk pe email karein.`;
 }
 
+// ============================================================
+// WEBHOOK
+// ============================================================
+app.post('/webhook', async (req, res) => {
+  res.sendStatus(200);
+  try {
+    const body = req.body;
+    if (body.typeWebhook !== 'incomingMessageReceived') return;
+    const chatId = body.senderData?.chatId;
+    const text = body.messageData?.textMessageData?.textMessage;
+    const name = body.senderData?.senderName || 'Employee';
+    if (!chatId || !text) return;
+    if (chatId.includes('@g.us')) return;
+
+    // LAYER 1: WHITELIST
+    if (!WHITELIST.has(chatId)) {
+      await sendMsg(chatId, `Assalam o Alaikum!\n\nYeh service sirf M&P Express ke registered employees ke liye hai.\n\nHR se rabta karein: hr@mp.com.pk\n\nShukriya.`);
+      return;
+    }
+
+    // LAYER 2: EMPLOYEE ID
+    if (!verifiedUsers.has(chatId)) {
+      if (!seenUsers.has(chatId)) {
+        seenUsers.add(chatId);
+        pendingVerification.add(chatId);
+        await sendMsg(chatId, `${getGreeting()} ${name},\n\nM&P Express HR Helpdesk mein khush aamdeed.\n\nTasdeq ke liye apna Employee ID darj farmaein:\n(Misaal: EMP001)`);
+        return;
+      }
+      if (pendingVerification.has(chatId)) {
+        const id = text.trim().toUpperCase();
+        if (EMPLOYEE_DB[id] === chatId) {
+          verifiedUsers.add(chatId);
+          pendingVerification.delete(chatId);
+          await sendMsg(chatId,
+`${getGreeting()} ${name},
+
+Aap ki shanakht kamiyabi se mustanad ho gayi. ✓
+
+M&P Express HR Helpdesk mein khush aamdeed.
+Yeh service exclusively HR-related queries ke liye hai.
+
+Apni inquiry muntakhib farmaein:
+
+1 — HR Policies & Benefits
+2 — Office Timing & Attendance
+3 — Medical Panel Hospitals (city ka naam likhein)
+4 — Other HR Matters
+
+Option 1, 2, 3 ka jawab fehri mil jaye ga.
+Option 4 ke liye HRBP online hone par jawab diya jaye ga.
+
+Note: Emergency medical ke liye
+IGI Helpline: 042-345-03333 (24/7 available)`);
+        } else {
+          await sendMsg(chatId, `Darj karda Employee ID mustanad nahi.\n\nDobara koshish karein ya HR se rabta karein:\nhr@mp.com.pk | 0311-1111111`);
+        }
+        return;
+      }
+    }
+
+    // VERIFIED — REPLY
+    const reply = await getAIReply(text, name, chatId);
+    await sendMsg(chatId, reply);
+
+  } catch (err) {
+    console.error('Webhook Error:', err.message);
+  }
+});
+
+app.get('/', (req, res) => {
+  res.send(`HR Bot | OpenRouter: ${OPENROUTER_KEY ? 'YES' : 'NO'} | Instance: ${INSTANCE ? 'YES' : 'NO'} | PKT: ${getPKTHour()}:00 | Office: ${isOfficeHours() ? 'OPEN' : 'CLOSED'}`);
+});
+
+app.listen(process.env.PORT || 8080, () => console.log('Bot started!'));
