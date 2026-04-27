@@ -20,10 +20,10 @@ LEAVES POLICY:
 - Leave form HR office se milta hai
 
 OFFICE TIMING:
-- Somvar se Juma: 9:00 AM se 5:30 PM
+- Monday to Saturday: 9:00 AM se 5:30 PM
 - Lunch Break: 1:00 PM se 2:00 PM
 - Late arrival grace period: 15 minute
-- Saturday aur Sunday: Band
+- Sunday: off Day
 
 MEDICAL POLICY:
 - Panel hospital mein IGI Health Card dikhayein — koi payment nahi
@@ -33,8 +33,7 @@ MEDICAL POLICY:
 - IGI 24/7 Helpline: 042-345-03333
 
 HR CONTACTS:
-- Email: hr@mp.com.pk
-- Phone: 0311-1111111
+- Email: ali.abbas@mulphilog.com
 - HR Office: Monday to Friday, 9AM to 5:30PM`;
 
 module.exports = HR_KNOWLEDGE;
