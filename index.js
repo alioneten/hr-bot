@@ -7,6 +7,9 @@ const OPENROUTER_KEY = process.env.OPENROUTER_KEY;
 const INSTANCE = process.env.GREEN_INSTANCE_ID;
 const TOKEN = process.env.GREEN_API_TOKEN;
 
+// ============================================================
+// PANEL HOSPITALS — IGI Insurance
+// ============================================================
 const HOSPITALS = {
   'islamabad': [
     'Shifa International Hospital — H-8/4, Islamabad',
@@ -160,6 +163,9 @@ const HOSPITALS = {
 
 const PAGE_SIZE = 6;
 
+// ============================================================
+// HR KNOWLEDGE BASE
+// ============================================================
 const HR_KNOWLEDGE = `Aap M&P Express Logistics ke HR Assistant hain.
 
 SAKHT HIDAYAT:
@@ -190,6 +196,9 @@ MEDICAL POLICY:
 HR CONTACT:
 - Email: hr@mp.com.pk | Phone: 0311-1111111`;
 
+// ============================================================
+// SESSION MANAGEMENT
+// ============================================================
 const sessions = {};
 const SESSION_TIMEOUT = 30 * 60 * 1000;
 
@@ -208,6 +217,9 @@ function setSession(chatId, data) {
   sessions[chatId] = { ...sessions[chatId], ...data, lastActive: Date.now() };
 }
 
+// ============================================================
+// TIME FUNCTIONS
+// ============================================================
 function getPKTHour() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })).getHours();
 }
@@ -225,6 +237,9 @@ function getGreeting() {
   return 'Assalam o Alaikum! Shab Bakhair';
 }
 
+// ============================================================
+// MAIN MENU
+// ============================================================
 function mainMenu(name) {
   return `${getGreeting()} ${name},
 
@@ -240,6 +255,9 @@ Emergency medical:
 IGI Helpline: 042-345-03333 (24/7)`;
 }
 
+// ============================================================
+// HOSPITAL FUNCTIONS
+// ============================================================
 function getHospitalPage(city, page) {
   const list = HOSPITALS[city];
   if (!list) return null;
@@ -275,6 +293,9 @@ function wantsMenu(text) {
   return t === '0' || t === 'menu' || t === 'wapas' || t === 'back';
 }
 
+// ============================================================
+// SEND MESSAGE
+// ============================================================
 async function sendMsg(chatId, message) {
   try {
     await axios.post(
@@ -286,6 +307,9 @@ async function sendMsg(chatId, message) {
   }
 }
 
+// ============================================================
+// AI REPLY
+// ============================================================
 async function getAIReply(text, name) {
   if (!isOfficeHours()) {
     return `Assalam o Alaikum ${name},\n\nOffice hours (9AM–5:30PM) khatam ho chuki hain.\nAglay working day mein jawab diya jaye ga.\n\nEmergency: IGI 042-345-03333 (24/7)\n\n0 — Main Menu`;
@@ -318,43 +342,69 @@ async function getAIReply(text, name) {
 }
 
 // ============================================================
-// WEBHOOK — Outgoing block hata diya, ab sab numbers reply karenge
+// WEBHOOK
 // ============================================================
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
   try {
     const body = req.body;
-    const type = body.typeWebhook;
-
-    if (type !== 'incomingMessageReceived') return;
+    if (body.typeWebhook !== 'incomingMessageReceived') return;
 
     const chatId = body.senderData?.chatId;
-    const text = body.messageData?.textMessageData?.textMessage;
     const name = body.senderData?.senderName || 'Employee';
-    if (!chatId || !text) return;
+
+    if (!chatId) return;
     if (chatId.includes('@g.us')) return;
+
+    const rawText = body.messageData?.textMessageData?.textMessage;
+    const text = rawText?.trim();
+
+    // ============================================================
+    // SWE001 / SWE999 FIX — Naye number ka pehla message empty hota hai
+    // ============================================================
+    if (
+      !text ||
+      text.includes('{{SWE001}}') ||
+      text.includes('{{SWE999}}') ||
+      text.includes('{{SWE003}}')
+    ) {
+      const session = getSession(chatId);
+      if (session.state === 'new') {
+        // Naya number — seedha welcome bhejo
+        setSession(chatId, { state: 'menu' });
+        await sendMsg(chatId, mainMenu(name));
+      } else {
+        // Purana session — message samajh nahi aaya
+        await sendMsg(chatId, `Aapka message receive nahi hua.\nKripya dobara likhein.\n\n0 — Main Menu`);
+      }
+      return;
+    }
 
     const session = getSession(chatId);
 
+    // 0 / menu / wapas — hamesha main menu
     if (wantsMenu(text)) {
       setSession(chatId, { state: 'menu' });
       await sendMsg(chatId, mainMenu(name));
       return;
     }
 
+    // Naya session
     if (session.state === 'new') {
       setSession(chatId, { state: 'menu' });
       await sendMsg(chatId, mainMenu(name));
       return;
     }
 
-    if (text.trim() === '1') {
+    // Option 1
+    if (text === '1') {
       setSession(chatId, { state: 'ai_chat' });
       await sendMsg(chatId, `HR Policies ke baare mein apna sawaal likhein:\n(Leaves, Medical, ya koi aur policy)\n\n0 — Main Menu`);
       return;
     }
 
-    if (text.trim() === '2') {
+    // Option 2
+    if (text === '2') {
       setSession(chatId, { state: 'menu' });
       await sendMsg(chatId,
 `Office Timing — M&P Express:
@@ -368,7 +418,8 @@ Saturday & Sunday: Band
       return;
     }
 
-    if (text.trim() === '3') {
+    // Option 3
+    if (text === '3') {
       setSession(chatId, { state: 'hospital_city' });
       await sendMsg(chatId,
 `City ka naam likhein — us city ke IGI panel hospitals ki detail share kar di jaye gi.
@@ -377,12 +428,14 @@ Saturday & Sunday: Band
       return;
     }
 
-    if (text.trim() === '4') {
+    // Option 4
+    if (text === '4') {
       setSession(chatId, { state: 'ai_chat' });
       await sendMsg(chatId, `Apna sawaal likhein — HRBP online hone par jawab diya jaye ga.\n\n0 — Main Menu`);
       return;
     }
 
+    // Hospital city
     if (session.state === 'hospital_city') {
       const city = findCity(text);
       if (city) {
@@ -394,6 +447,7 @@ Saturday & Sunday: Band
       return;
     }
 
+    // Hospital pagination
     if (session.state === 'hospital_list' && wantsMore(text)) {
       const nextPage = (session.hospitalPage || 0) + 1;
       const result = getHospitalPage(session.hospitalCity, nextPage);
@@ -407,12 +461,14 @@ Saturday & Sunday: Band
       return;
     }
 
+    // AI chat
     if (session.state === 'ai_chat') {
       const reply = await getAIReply(text, name);
       await sendMsg(chatId, reply);
       return;
     }
 
+    // Default
     setSession(chatId, { state: 'menu' });
     await sendMsg(chatId, mainMenu(name));
 
